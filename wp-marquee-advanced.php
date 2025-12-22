@@ -1,11 +1,11 @@
 <?php
 /*
 Plugin Name: WP Marquee Advanced
-Plugin URI:  https://example.com
+Plugin URI:  https://github.com/vadikonline1/wp-marquee-advanced/
 Description: Banner animat cu scroll infinit și setări complete în admin (text, culoare, font, dimensiune, fundal, viteza, margini).
 Version:     1.0
-Author:      Numele Tău
-Author URI:  https://example.com
+Author:      Steel..xD
+Author URI:  https://github.com/vadikonline1/wp-marquee-advanced/
 License:     GPL2
 */
 
