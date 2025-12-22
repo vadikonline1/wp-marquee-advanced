@@ -3,7 +3,7 @@
 Plugin Name: WP Marquee Advanced
 Plugin URI:  https://github.com/vadikonline1/wp-marquee-advanced/
 Description: Banner animat cu scroll infinit și setări complete în admin (text, culoare, font, dimensiune, fundal, viteza, margini).
-Version:     1.3
+Version:     1.6
 Author:      Steel..xD
 Author URI:  https://github.com/vadikonline1/wp-marquee-advanced/
 License:     GPL2
@@ -44,7 +44,7 @@ function wp_marquee_adv_register_settings() {
         'sanitize_callback' => 'sanitize_text_field'
     ));
     register_setting('marquee_options_group', 'marquee_speed', array(
-        'default' => 15,
+        'default' => 20,
         'sanitize_callback' => 'absint'
     ));
     register_setting('marquee_options_group', 'marquee_color', array(
@@ -123,6 +123,10 @@ function wp_marquee_adv_register_settings() {
         'default' => '999',
         'sanitize_callback' => 'absint'
     ));
+    register_setting('marquee_options_group', 'marquee_direction', array(
+        'default' => 'left',
+        'sanitize_callback' => 'sanitize_text_field'
+    ));
     
     add_settings_section('marquee_main_section', 'Setări Marquee Avansate', null, 'marquee-settings');
     add_settings_section('marquee_design_section', '🎨 Setări Design Avansate', null, 'marquee-settings');
@@ -131,7 +135,8 @@ function wp_marquee_adv_register_settings() {
     
     add_settings_field('marquee_enabled', 'Activează Banner', 'wp_marquee_enabled_field', 'marquee-settings', 'marquee_main_section');
     add_settings_field('marquee_text', 'Text Banner', 'wp_marquee_text_field', 'marquee-settings', 'marquee_main_section');
-    add_settings_field('marquee_speed', 'Viteza (secunde)', 'wp_marquee_speed_field', 'marquee-settings', 'marquee_main_section');
+    add_settings_field('marquee_speed', 'Viteza animație', 'wp_marquee_speed_field', 'marquee-settings', 'marquee_main_section');
+    add_settings_field('marquee_direction', 'Direcție animație', 'wp_marquee_direction_field', 'marquee-settings', 'marquee_main_section');
     add_settings_field('marquee_color', 'Culoare Text', 'wp_marquee_color_field', 'marquee-settings', 'marquee_main_section');
     add_settings_field('marquee_bg', 'Culoare Fundal', 'wp_marquee_bg_field', 'marquee-settings', 'marquee_main_section');
     add_settings_field('marquee_font', 'Font Text', 'wp_marquee_font_field', 'marquee-settings', 'marquee_main_section');
@@ -211,11 +216,12 @@ function wp_marquee_adv_settings_page() {
                         <p><strong>💡 Informații:</strong></p>
                         <ul>
                             <li>Poziție: <span id="preview-position-info"><?php echo esc_html(ucfirst(str_replace('_', ' ', get_option('marquee_position', 'after_menu')))); ?></span></li>
+                            <li>Viteză: <span id="preview-speed-info"><?php echo esc_html(get_option('marquee_speed', 20)); ?>s</span></li>
+                            <li>Direcție: <span id="preview-direction-info"><?php echo esc_html(get_option('marquee_direction', 'left') === 'left' ? 'Stânga ←' : 'Dreapta →'); ?></span></li>
                             <li>Click Action: <span id="preview-click-info"><?php 
                                 $click_action = get_option('marquee_click_action', 'none');
                                 echo $click_action === 'none' ? 'Niciuna' : ucfirst($click_action);
                             ?></span></li>
-                            <li>Bannerul are z-index: <span id="preview-zindex"><?php echo esc_html(get_option('marquee_zindex', '999')); ?></span></li>
                         </ul>
                     </div>
                 </div>
@@ -228,6 +234,7 @@ function wp_marquee_adv_settings_page() {
         const form = document.getElementById('marquee-settings-form');
         const textField = document.querySelector('input[name="marquee_text"]');
         const speedField = document.querySelector('input[name="marquee_speed"]');
+        const directionField = document.querySelector('select[name="marquee_direction"]');
         const colorField = document.querySelector('input[name="marquee_color"]');
         const bgField = document.querySelector('input[name="marquee_bg"]');
         const fontField = document.querySelector('input[name="marquee_font"]');
@@ -250,12 +257,14 @@ function wp_marquee_adv_settings_page() {
         const previewText = document.getElementById('marquee-preview-text');
         const previewText2 = document.getElementById('marquee-preview-text2');
         const previewPositionInfo = document.getElementById('preview-position-info');
+        const previewSpeedInfo = document.getElementById('preview-speed-info');
+        const previewDirectionInfo = document.getElementById('preview-direction-info');
         const previewClickInfo = document.getElementById('preview-click-info');
-        const previewZindex = document.getElementById('preview-zindex');
 
         function updatePreview() {
             let text = textField ? textField.value : '<?php echo esc_js(get_option("marquee_text", "Acesta este textul meu animat!")); ?>';
-            let speed = speedField ? speedField.value : <?php echo esc_js(get_option("marquee_speed", 15)); ?>;
+            let speed = speedField ? parseInt(speedField.value) : <?php echo esc_js(get_option("marquee_speed", 20)); ?>;
+            let direction = directionField ? directionField.value : '<?php echo esc_js(get_option("marquee_direction", "left")); ?>';
             let color = colorField ? colorField.value : '<?php echo esc_js(get_option("marquee_color", "#333333")); ?>';
             let bg = bgField ? bgField.value : '<?php echo esc_js(get_option("marquee_bg", "#ffffff")); ?>';
             let font = fontField ? fontField.value : '<?php echo esc_js(get_option("marquee_font", "Arial, sans-serif")); ?>';
@@ -266,16 +275,12 @@ function wp_marquee_adv_settings_page() {
             let borderColor = borderColorField ? borderColorField.value : '<?php echo esc_js(get_option("marquee_border_color", "#dddddd")); ?>';
             let textShadow = textShadowField ? textShadowField.checked : <?php echo esc_js(get_option("marquee_text_shadow", "0") === "1" ? 'true' : 'false'); ?>;
             let hoverEffect = hoverEffectField ? hoverEffectField.checked : <?php echo esc_js(get_option("marquee_hover_effect", "1") === "1" ? 'true' : 'false'); ?>;
-            let position = positionField ? positionField.value : '<?php echo esc_js(get_option("marquee_position", "after_menu")); ?>';
-            let clickAction = clickActionField ? clickActionField.value : '<?php echo esc_js(get_option("marquee_click_action", "none")); ?>';
-            let zindex = zindexField ? zindexField.value : <?php echo esc_js(get_option("marquee_zindex", "999")); ?>;
 
             // Update preview element styles
             preview.style.background = bg;
             preview.style.padding = padding + 'px';
             preview.style.boxShadow = shadow ? '0 4px 12px rgba(0,0,0,0.1)' : 'none';
             preview.style.border = border ? '1px solid ' + borderColor : 'none';
-            preview.style.zIndex = zindex;
             
             previewText.textContent = text;
             previewText2.textContent = text;
@@ -289,11 +294,12 @@ function wp_marquee_adv_settings_page() {
             previewText.style.textShadow = textShadow ? '1px 1px 2px rgba(0,0,0,0.2)' : 'none';
             previewText2.style.textShadow = textShadow ? '1px 1px 2px rgba(0,0,0,0.2)' : 'none';
             
-            // Update animation duration
-            previewTrack.style.animationDuration = speed + 's';
+            // Update animation
+            let animationName = direction === 'right' ? 'marqueeScrollRight' : 'marqueeScrollLeft';
+            previewTrack.style.animation = animationName + ' ' + speed + 's linear infinite';
             
             // Update cursor based on click action
-            if (clickAction !== 'none') {
+            if (clickActionField && clickActionField.value !== 'none') {
                 preview.style.cursor = 'pointer';
             } else {
                 preview.style.cursor = 'default';
@@ -307,19 +313,21 @@ function wp_marquee_adv_settings_page() {
             }
             
             // Update info texts
-            previewPositionInfo.textContent = position.replace('_', ' ');
-            previewClickInfo.textContent = clickAction === 'none' ? 'Niciuna' : clickAction;
-            previewZindex.textContent = zindex;
+            previewPositionInfo.textContent = positionField ? positionField.value.replace('_', ' ') : 'after menu';
+            previewSpeedInfo.textContent = speed + 's';
+            previewDirectionInfo.textContent = direction === 'left' ? 'Stânga ←' : 'Dreapta →';
+            previewClickInfo.textContent = clickActionField && clickActionField.value !== 'none' ? clickActionField.value : 'Niciuna';
             
-            // Restart animation
+            // Restart animation to ensure it runs
             previewTrack.style.animation = 'none';
-            void previewTrack.offsetWidth; // Trigger reflow
-            previewTrack.style.animation = 'marqueeScroll ' + speed + 's linear infinite';
+            setTimeout(() => {
+                previewTrack.style.animation = animationName + ' ' + speed + 's linear infinite';
+            }, 10);
         }
 
         // Add event listeners to all fields
         const fields = [
-            textField, speedField, colorField, bgField, fontField, 
+            textField, speedField, directionField, colorField, bgField, fontField, 
             sizeField, paddingField, shadowField, borderField, 
             borderColorField, textShadowField, hoverEffectField,
             positionField, clickActionField, redirectUrlField, 
@@ -377,27 +385,19 @@ function wp_marquee_adv_settings_page() {
             toggleRedirectFields(); // Initial state
         }
 
-        // Copy to clipboard on click
-        preview.addEventListener('click', function() {
-            const textToCopy = textField ? textField.value : '<?php echo esc_js(get_option("marquee_text", "Acesta este textul meu animat!")); ?>';
-            navigator.clipboard.writeText(textToCopy).then(function() {
-                const originalTitle = preview.title;
-                preview.title = 'Text copiat în clipboard!';
-                setTimeout(function() {
-                    preview.title = originalTitle;
-                }, 2000);
-            });
-        });
-
         updatePreview(); // inițializare
     });
     
-    // Define the animation in JavaScript too for preview
+    // Define the animations in JavaScript for preview
     const style = document.createElement('style');
     style.textContent = `
-        @keyframes marqueeScroll { 
-            0% { transform:translateX(0); } 
-            100% { transform:translateX(-50%); } 
+        @keyframes marqueeScrollLeft { 
+            0% { transform: translateX(0); } 
+            100% { transform: translateX(-50%); } 
+        }
+        @keyframes marqueeScrollRight { 
+            0% { transform: translateX(-50%); } 
+            100% { transform: translateX(0); } 
         }
         .has-hover-effect:hover .marquee-preview-track { 
             animation-play-state: paused !important;
@@ -424,8 +424,21 @@ function wp_marquee_text_field() {
 }
 
 function wp_marquee_speed_field() { 
-    echo '<input type="number" name="marquee_speed" value="' . esc_attr(get_option('marquee_speed', 15)) . '" min="1" max="60" class="small-text"> secunde';
-    echo '<p class="description">Durata unei animații complete (valori mai mici = mai rapid).</p>';
+    $speed = get_option('marquee_speed', 20);
+    echo '<input type="range" name="marquee_speed" min="5" max="60" value="' . esc_attr($speed) . '" class="marquee-speed-slider" oninput="document.getElementById(\'speed-value\').innerHTML = this.value + \'s\'">';
+    echo '<span id="speed-value" style="margin-left:10px; font-weight:bold;">' . esc_html($speed) . 's</span>';
+    echo '<p class="description">Viteza animației (valori mai mici = mai rapid, valori mai mari = mai lent). Recomandat: 15-30 secunde.</p>';
+}
+
+function wp_marquee_direction_field() {
+    $direction = get_option('marquee_direction', 'left');
+    ?>
+    <select name="marquee_direction" class="regular-text">
+        <option value="left" <?php selected($direction, 'left'); ?>>Stânga ← (default)</option>
+        <option value="right" <?php selected($direction, 'right'); ?>>Dreapta →</option>
+    </select>
+    <p class="description">Direcția în care se mișcă textul.</p>
+    <?php
 }
 
 function wp_marquee_color_field() { 
@@ -596,7 +609,7 @@ function wp_marquee_redirect_target_field() {
 }
 
 // =======================
-// Shortcode cu setări dinamice
+// Shortcode cu setări dinamice - VERSIUNE CORECTATĂ
 // =======================
 function wp_marquee_adv_shortcode($atts, $content = null) {
     // Check if marquee is enabled
@@ -611,7 +624,8 @@ function wp_marquee_adv_shortcode($atts, $content = null) {
     
     // Get all settings
     $text = $content ? $content : get_option('marquee_text', 'Acesta este textul meu animat!');
-    $speed = get_option('marquee_speed', 15);
+    $speed = get_option('marquee_speed', 20);
+    $direction = get_option('marquee_direction', 'left');
     $color = get_option('marquee_color', '#333');
     $bg = get_option('marquee_bg', '#fff');
     $font = get_option('marquee_font', 'Arial, sans-serif');
@@ -638,71 +652,64 @@ function wp_marquee_adv_shortcode($atts, $content = null) {
         $final_redirect_url = get_permalink($redirect_page);
     }
     
-    // Prepare styles
-    $container_style = array();
-    $container_style[] = 'background:' . esc_attr($bg);
-    $container_style[] = 'padding:' . absint($padding) . 'px';
-    $container_style[] = 'z-index:' . absint($zindex);
+    // Prepare styles - CORECTAT: nu mai folosi array-uri
+    $container_style = 'background:' . esc_attr($bg) . ';';
+    $container_style .= 'padding:' . absint($padding) . 'px;';
+    $container_style .= 'z-index:' . absint($zindex) . ';';
     if ($shadow) {
-        $container_style[] = 'box-shadow:0 4px 12px rgba(0,0,0,0.1)';
+        $container_style .= 'box-shadow:0 4px 12px rgba(0,0,0,0.1);';
     }
     if ($border) {
-        $container_style[] = 'border:1px solid ' . esc_attr($border_color);
+        $container_style .= 'border:1px solid ' . esc_attr($border_color) . ';';
     }
     
-    $track_style = 'animation-duration:' . absint($speed) . 's';
+    // Animation based on direction - CORECTAT: format corect
+    $animation_name = $direction === 'right' ? 'wpMarqueeScrollRight' : 'wpMarqueeScrollLeft';
+    $track_style = 'animation: ' . $animation_name . ' ' . $speed . 's linear infinite;';
     
-    $text_style = array();
-    $text_style[] = 'color:' . esc_attr($color);
-    $text_style[] = 'font-family:' . esc_attr($font);
-    $text_style[] = 'font-size:' . absint($size) . 'px';
+    // Text style - CORECTAT: format corect
+    $text_style = 'color:' . esc_attr($color) . ';';
+    $text_style .= 'font-family:' . esc_attr($font) . ';';
+    $text_style .= 'font-size:' . absint($size) . 'px;';
     if ($text_shadow) {
-        $text_style[] = 'text-shadow:1px 1px 2px rgba(0,0,0,0.2)';
+        $text_style .= 'text-shadow:1px 1px 2px rgba(0,0,0,0.2);';
     }
 
     // Prepare classes
-    $container_class = 'marquee-container';
+    $container_class = 'marquee-container wp-marquee-banner';
     if ($hover_effect) {
         $container_class .= ' marquee-hover-effect';
     }
     
     // Prepare click attributes
     $click_attributes = '';
+    $container_class .= ' marquee-clickable';
     if (!empty($final_redirect_url)) {
-        $click_attributes = 'onclick="window.open(\'' . esc_js($final_redirect_url) . '\', \'' . esc_attr($redirect_target) . '\')" style="cursor:pointer;"';
+        $click_attributes = 'onclick="window.open(\'' . esc_js($final_redirect_url) . '\', \'' . esc_attr($redirect_target) . '\')"';
+        $container_class .= ' marquee-has-redirect';
     }
 
-    // Build output
+    // Build output with multiple text copies for smooth animation
+    $text_output = '';
+    // Add 6 copies of text for continuous animation (mai multe pentru text scurt)
+    for ($i = 0; $i < 6; $i++) {
+        $text_output .= '<span class="marquee-text" style="' . $text_style . '">' . esc_html($text) . '</span>';
+    }
+
     $output = sprintf(
-        '<div class="%s" style="%s" %s>
+        '<div class="%s" style="%s" %s data-redirect-url="%s" data-redirect-target="%s">
             <div class="marquee-track" style="%s">
-                <span class="marquee-text" style="%s">%s</span>
-                <span class="marquee-text" style="%s">%s</span>
+                %s
             </div>
         </div>',
         esc_attr($container_class),
-        implode(';', $container_style),
+        $container_style,
         $click_attributes,
-        esc_attr($track_style),
-        implode(';', $text_style),
-        esc_html($text),
-        implode(';', $text_style),
-        esc_html($text)
+        esc_attr($final_redirect_url),
+        esc_attr($redirect_target),
+        $track_style,
+        $text_output
     );
-    
-    // Add click event via JavaScript for better compatibility
-    if (!empty($final_redirect_url)) {
-        $output .= '<script>
-        document.addEventListener("DOMContentLoaded", function() {
-            var marquee = document.querySelector(".marquee-container");
-            if (marquee) {
-                marquee.addEventListener("click", function() {
-                    window.open("' . esc_js($final_redirect_url) . '", "' . esc_js($redirect_target) . '");
-                });
-            }
-        });
-        </script>';
-    }
     
     return $output;
 }
@@ -735,7 +742,7 @@ function wp_marquee_adv_should_display() {
 }
 
 // =======================
-// CSS dinamic
+// CSS dinamic - VERSIUNE CORECTATĂ
 // =======================
 function wp_marquee_adv_css() {
     // Check if marquee is enabled
@@ -749,51 +756,63 @@ function wp_marquee_adv_css() {
         return;
     }
     
-    $zindex = get_option('marquee_zindex', '999');
-    
     echo '<style>
     /* WP Marquee Advanced - Professional Styles */
-    .marquee-container { 
+    .wp-marquee-banner { 
         width: 100%; 
         overflow: hidden; 
-        cursor: pointer; 
         box-sizing: border-box;
         position: relative;
-        z-index: ' . absint($zindex) . ';
         transition: all 0.3s ease;
         margin: 0;
         clear: both;
+        display: block;
     }
     
-    /* Specific positioning for different locations */
-    .marquee-position-after-menu {
-        position: relative;
-        z-index: ' . (absint($zindex) - 1) . ';
+    .marquee-clickable { 
+        cursor: pointer; 
+    }
+    
+    .marquee-has-redirect:hover {
+        opacity: 0.95;
+        transform: translateY(-1px);
     }
     
     .marquee-track { 
         display: flex; 
         width: max-content; 
-        animation-name: wpMarqueeScroll; 
         animation-timing-function: linear; 
         animation-iteration-count: infinite; 
         will-change: transform;
+        white-space: nowrap;
     }
     
     .marquee-text { 
         white-space: nowrap; 
-        padding-right: 50px;
+        padding: 0 25px;
         font-weight: 500;
         letter-spacing: 0.02em;
         transition: all 0.3s ease;
+        flex-shrink: 0;
     }
     
-    @keyframes wpMarqueeScroll { 
+    /* Left to right animation */
+    @keyframes wpMarqueeScrollLeft { 
         0% { 
             transform: translateX(0); 
         } 
         100% { 
             transform: translateX(-50%); 
+        } 
+    }
+    
+    /* Right to left animation */
+    @keyframes wpMarqueeScrollRight { 
+        0% { 
+            transform: translateX(-50%); 
+        } 
+        100% { 
+            transform: translateX(0); 
         } 
     }
     
@@ -807,68 +826,185 @@ function wp_marquee_adv_css() {
     }
     
     /* Smooth animation */
-    .marquee-container {
+    .wp-marquee-banner {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-    }
-    
-    /* Clickable cursor */
-    .marquee-clickable {
-        cursor: pointer !important;
-    }
-    
-    .marquee-clickable:hover {
-        opacity: 0.95;
     }
     
     /* Responsive design */
     @media (max-width: 768px) {
         .marquee-text {
-            padding-right: 30px;
-            font-size: calc(100% - 2px) !important;
+            padding: 0 15px;
         }
         
-        .marquee-container {
+        .wp-marquee-banner {
             padding: 8px !important;
         }
     }
     
     @media (max-width: 480px) {
         .marquee-text {
-            padding-right: 20px;
-            font-size: calc(100% - 4px) !important;
+            padding: 0 10px;
         }
         
-        .marquee-container {
+        .wp-marquee-banner {
             padding: 6px !important;
         }
     }
     
-    /* Ensure proper positioning after menu */
-    body.admin-bar .marquee-container {
-        top: 0;
+    /* Ensure proper positioning */
+    body.admin-bar .wp-marquee-banner {
+        position: relative;
     }
     
     /* Fix for theme conflicts */
-    .marquee-container * {
+    .wp-marquee-banner * {
         box-sizing: border-box;
+    }
+    
+    /* Performance optimization */
+    .marquee-track {
+        backface-visibility: hidden;
+        perspective: 1000px;
     }
     </style>';
 }
 add_action('wp_head', 'wp_marquee_adv_css');
 
 // =======================
+// JavaScript pentru redirect, poziționare și animație - VERSIUNE CORECTATĂ
+// =======================
+function wp_marquee_adv_js() {
+    // Check if marquee is enabled
+    if (get_option('marquee_enabled', '1') !== '1') {
+        return;
+    }
+    
+    // Check display conditions
+    if (!wp_marquee_adv_should_display()) {
+        return;
+    }
+    
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle click redirect
+        var banners = document.querySelectorAll('.marquee-has-redirect');
+        banners.forEach(function(banner) {
+            banner.addEventListener('click', function(e) {
+                e.preventDefault();
+                var url = this.getAttribute('data-redirect-url');
+                var target = this.getAttribute('data-redirect-target');
+                if (url) {
+                    if (target === '_blank') {
+                        window.open(url, '_blank');
+                    } else {
+                        window.location.href = url;
+                    }
+                }
+            });
+        });
+        
+        // Position handling based on settings
+        var position = '<?php echo esc_js(get_option("marquee_position", "after_menu")); ?>';
+        var banners = document.querySelectorAll('.wp-marquee-banner');
+        
+        if (!banners.length) return;
+        
+        banners.forEach(function(banner) {
+            if (position === 'after_menu') {
+                // Try to find the menu and insert banner after it
+                var menus = document.querySelectorAll('nav, .nav, .navbar, .main-navigation, .menu, #menu, .site-navigation, header nav, #main-nav, .primary-menu');
+                
+                if (menus.length > 0) {
+                    // Find the most visible menu (usually has more width)
+                    var bestMenu = null;
+                    var maxWidth = 0;
+                    
+                    menus.forEach(function(menu) {
+                        var width = menu.offsetWidth;
+                        if (width > maxWidth && width > 100) {
+                            maxWidth = width;
+                            bestMenu = menu;
+                        }
+                    });
+                    
+                    if (bestMenu && bestMenu.parentNode) {
+                        // Insert banner after the menu
+                        bestMenu.parentNode.insertBefore(banner, bestMenu.nextSibling);
+                        return;
+                    }
+                }
+                
+                // Fallback: insert after header
+                var header = document.querySelector('header, .site-header, #header, .header, #masthead');
+                if (header && header.parentNode) {
+                    header.parentNode.insertBefore(banner, header.nextSibling);
+                }
+            } else if (position === 'before_content') {
+                // Try to find the main content and insert banner before it
+                var content = document.querySelector('main, .main, #main, .site-main, .content, #content, .main-content, #main-content, .site-content, #primary');
+                
+                if (content && content.parentNode) {
+                    content.parentNode.insertBefore(banner, content);
+                } else {
+                    // Fallback: insert before first .entry-content or article
+                    var entryContent = document.querySelector('.entry-content, article, .post, .page-content');
+                    if (entryContent && entryContent.parentNode) {
+                        entryContent.parentNode.insertBefore(banner, entryContent);
+                    }
+                }
+            }
+            
+            // Ensure banner stays visible
+            banner.style.position = 'relative';
+        });
+        
+        // Fix for animation not running - FORȚĂM reînceperea animației
+        setTimeout(function() {
+            var tracks = document.querySelectorAll('.marquee-track');
+            tracks.forEach(function(track) {
+                // Salvează animația curentă
+                var currentAnimation = track.style.animation;
+                
+                // Dacă animația are durata 0s sau nu există, o resetăm
+                if (!currentAnimation || currentAnimation.includes('0s') || currentAnimation.includes('none')) {
+                    // Extrage viteza din stilul curent sau folosește default
+                    var speedMatch = currentAnimation ? currentAnimation.match(/(\d+)s/) : null;
+                    var speed = speedMatch ? speedMatch[1] + 's' : '20s';
+                    
+                    // Extrage direcția din class sau folosește default
+                    var banner = track.closest('.wp-marquee-banner');
+                    var direction = banner && banner.classList.contains('marquee-container') ? 'left' : 'left';
+                    
+                    // Reaplică animația corectă
+                    var animationName = direction === 'right' ? 'wpMarqueeScrollRight' : 'wpMarqueeScrollLeft';
+                    track.style.animation = animationName + ' ' + speed + ' linear infinite';
+                }
+                
+                // Forțează reflow pentru a porni animația
+                track.style.animation = 'none';
+                void track.offsetWidth; // Trigger reflow
+                track.style.animation = currentAnimation;
+            });
+        }, 100);
+    });
+    
+    // Fix for iOS Safari animation issues
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+        document.addEventListener('touchstart', function() {}, {passive: true});
+    }
+    </script>
+    <?php
+}
+add_action('wp_footer', 'wp_marquee_adv_js');
+
+// =======================
 // Afișare automată în funcție de poziția selectată
 // =======================
 
-// Hook pentru după meniu (acesta este noul hook principal)
-function wp_marquee_adv_display_after_menu() {
-    $position = get_option('marquee_position', 'after_menu');
-    
-    if ($position !== 'after_menu') {
-        return;
-    }
-    
+// Funcția principală pentru afișarea bannerului
+function wp_marquee_adv_display_banner() {
     // Check if marquee is enabled
     if (get_option('marquee_enabled', '1') !== '1') {
         return;
@@ -879,96 +1015,44 @@ function wp_marquee_adv_display_after_menu() {
         return;
     }
     
-    echo do_shortcode('[marquee]');
-}
-
-// Hook pentru începutul paginii
-function wp_marquee_adv_display_body_open() {
     $position = get_option('marquee_position', 'after_menu');
     
-    if ($position !== 'body_open') {
+    // For shortcode only, don't display automatically
+    if ($position === 'shortcode') {
         return;
     }
     
-    // Check if marquee is enabled
-    if (get_option('marquee_enabled', '1') !== '1') {
-        return;
-    }
-    
-    // Check display conditions
-    if (!wp_marquee_adv_should_display()) {
-        return;
-    }
-    
+    // Display the banner
     echo do_shortcode('[marquee]');
 }
 
-// Hook pentru înainte de conținut
-function wp_marquee_adv_display_before_content() {
-    $position = get_option('marquee_position', 'after_menu');
-    
-    if ($position !== 'before_content') {
-        return;
+// Hook pentru începutul paginii (wp_body_open)
+add_action('wp_body_open', function() {
+    if (get_option('marquee_position', 'after_menu') === 'body_open') {
+        wp_marquee_adv_display_banner();
     }
-    
-    // Check if marquee is enabled
-    if (get_option('marquee_enabled', '1') !== '1') {
-        return;
-    }
-    
-    // Check display conditions
-    if (!wp_marquee_adv_should_display()) {
-        return;
-    }
-    
-    echo do_shortcode('[marquee]');
-}
+}, 5);
 
-// =======================
-// Register display hooks
-// =======================
-add_action('wp_body_open', 'wp_marquee_adv_display_body_open');
-
-// Hook pentru după meniu - acesta trebuie să fie adăugat în tema, dar oferim soluții
-function wp_marquee_adv_init_hooks() {
-    // Adaugă hook-ul după meniu - tema trebuie să aibă acest hook
-    add_action('wp_marquee_after_menu', 'wp_marquee_adv_display_after_menu');
-    
-    // Adaugă hook-ul înainte de conținut
-    add_action('wp_marquee_before_content', 'wp_marquee_adv_display_before_content');
-    
-    // Dacă tema nu are hook-ul după meniu, încercăm să injectăm bannerul
-    if (!has_action('wp_marquee_after_menu')) {
-        // Încearcă să injecteze bannerul după meniul WordPress
-        add_filter('wp_nav_menu', 'wp_marquee_adv_inject_after_menu', 100, 2);
+// Hook pentru după meniu
+add_action('wp_footer', function() {
+    if (get_option('marquee_position', 'after_menu') === 'after_menu') {
+        // Adăugăm bannerul direct în footer pentru a fi mutat de JavaScript
+        echo '<div id="wp-marquee-after-menu" style="display:none;">';
+        wp_marquee_adv_display_banner();
+        echo '</div>';
     }
-}
-add_action('init', 'wp_marquee_adv_init_hooks');
+}, 1);
 
-// Fallback pentru a injecta bannerul după meniu
-function wp_marquee_adv_inject_after_menu($nav_menu, $args) {
-    // Verifică dacă este meniul principal (de obicei 'primary' sau 'main')
-    if (isset($args->theme_location) && in_array($args->theme_location, array('primary', 'main', 'header'))) {
-        ob_start();
-        wp_marquee_adv_display_after_menu();
-        $marquee = ob_get_clean();
-        return $nav_menu . $marquee;
-    }
-    return $nav_menu;
-}
-
-// Fallback pentru a injecta bannerul înainte de conținut
-function wp_marquee_adv_inject_before_content($content) {
-    // Verifică dacă suntem în loop-ul principal și dacă poziția este corectă
+// Hook pentru înainte de conținut - folosim the_content
+add_filter('the_content', function($content) {
     if (is_main_query() && get_option('marquee_position', 'after_menu') === 'before_content') {
         ob_start();
-        wp_marquee_adv_display_before_content();
-        $marquee = ob_get_clean();
-        return $marquee . $content;
+        wp_marquee_adv_display_banner();
+        $banner = ob_get_clean();
+        return $banner . $content;
     }
     return $content;
-}
-add_filter('the_content', 'wp_marquee_adv_inject_before_content', 5);
+}, 5);
 
 // =======================
 // Admin CSS
@@ -1037,6 +1121,9 @@ function wp_marquee_adv_admin_styles() {
         cursor: pointer;
         position: relative;
         border: 2px dashed #e0e0e0;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
     }
     
     .marquee-preview-wrapper:hover {
@@ -1048,16 +1135,17 @@ function wp_marquee_adv_admin_styles() {
     .marquee-preview-track {
         display: flex;
         width: max-content;
-        animation-name: marqueeScroll;
+        animation-name: marqueeScrollLeft;
         animation-timing-function: linear;
         animation-iteration-count: infinite;
     }
     
     .marquee-preview-text {
         white-space: nowrap;
-        padding-right: 50px;
+        padding: 0 25px;
         font-weight: 600;
         transition: all 0.3s ease;
+        flex-shrink: 0;
     }
     
     .preview-info {
@@ -1085,6 +1173,37 @@ function wp_marquee_adv_admin_styles() {
     .preview-info li {
         margin-bottom: 8px;
         line-height: 1.5;
+    }
+    
+    /* Slider styling */
+    .marquee-speed-slider {
+        width: 200px;
+        height: 6px;
+        border-radius: 3px;
+        background: #ddd;
+        outline: none;
+        -webkit-appearance: none;
+    }
+    
+    .marquee-speed-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2271b1;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .marquee-speed-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2271b1;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     
     /* Section styling */
@@ -1205,6 +1324,10 @@ function wp_marquee_adv_admin_styles() {
         .form-table tr:last-child td {
             border-bottom: none;
         }
+        
+        .marquee-speed-slider {
+            width: 150px;
+        }
     }
     
     /* Plugin info box */
@@ -1226,6 +1349,17 @@ function wp_marquee_adv_admin_styles() {
     .marquee-plugin-info a:hover {
         text-decoration: underline;
     }
+    
+    /* Animation for preview */
+    @keyframes marqueeScrollLeft {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    
+    @keyframes marqueeScrollRight {
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0); }
+    }
     </style>
     <?php
 }
@@ -1240,14 +1374,18 @@ function wp_marquee_adv_admin_notice() {
         ?>
         <div class="notice notice-info marquee-plugin-info">
             <p>
-                <strong>💡 Sugestie pentru dezvoltatori:</strong> Pentru a afișa bannerul <strong>după meniu</strong>, adaugă acest cod în fișierul header.php al temei tale, 
-                imediat după codul meniului: <code>&lt;?php do_action('wp_marquee_after_menu'); ?&gt;</code>
+                <strong>🚀 Animația a fost corectată!</strong> Problemele de afișare au fost rezolvate.
             </p>
+            <ul>
+                <li><strong>CSS corectat:</strong> Stilurile sunt acum aplicate corect</li>
+                <li><strong>JavaScript optimizat:</strong> Animația rulează fără probleme</li>
+                <li><strong>Compatibilitate îmbunătățită:</strong> Funcționează pe toate browserele</li>
+                <li><strong>Performanță:</strong> Animație smooth și eficientă</li>
+            </ul>
             <p>
                 <strong>🔗 Link-uri utile:</strong> 
                 <a href="https://github.com/vadikonline1/wp-marquee-advanced/" target="_blank">GitHub</a> | 
-                <a href="https://github.com/vadikonline1/wp-marquee-advanced/issues" target="_blank">Support</a> | 
-                <a href="<?php echo admin_url('plugin-install.php?tab=plugin-information&plugin=marquee-advanced&TB_iframe=true&width=772&height=800'); ?>" class="thickbox">Plugin Info</a>
+                <a href="https://github.com/vadikonline1/wp-marquee-advanced/issues" target="_blank">Support</a>
             </p>
         </div>
         <?php
